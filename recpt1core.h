@@ -90,6 +90,7 @@ extern boolean f_exit;
 int tune(char *channel, thread_data *tdata, char *device);
 int close_tuner(thread_data *tdata);
 void show_channels(void);
+void show_channels_bondriver(char *driver);
 BON_CHANNEL_SET *searchrecoff(char *channel);
 void calc_cn(thread_data *tdata, boolean use_bell);
 int parse_time(const char * rectimestr, int *recsec);

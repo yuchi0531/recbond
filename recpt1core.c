@@ -266,6 +266,163 @@ show_channels(void)
 }
 
 
+/* Convert TCHAR string (UTF-16LE on Linux BonDriver) to UTF-8 */
+static void
+tchar_to_utf8(const TCHAR *src, char *dst, size_t dst_size)
+{
+	if (!dst || dst_size == 0)
+		return;
+	if (!src) {
+		dst[0] = '\0';
+		return;
+	}
+	if (sizeof(TCHAR) <= 1) {
+		size_t i;
+		for (i = 0; i < dst_size - 1 && src[i]; i++)
+			dst[i] = (char)src[i];
+		dst[i] = '\0';
+	} else {
+		const unsigned short *p = src;
+		size_t i = 0;
+		while (*p && i + 3 < dst_size) {
+			unsigned int wc = *p++;
+			if (wc < 0x80) {
+				dst[i++] = (char)wc;
+			} else if (wc < 0x800) {
+				dst[i++] = (char)(0xC0 | (wc >> 6));
+				dst[i++] = (char)(0x80 | (wc & 0x3F));
+			} else {
+				dst[i++] = (char)(0xE0 | (wc >> 12));
+				dst[i++] = (char)(0x80 | ((wc >> 6) & 0x3F));
+				dst[i++] = (char)(0x80 | (wc & 0x3F));
+			}
+		}
+		dst[i] = '\0';
+	}
+}
+
+/* Resolve driver shorthand (e.g. PS0, PT0, S0, T0) to full .so path.
+ * Returns the original string for full paths or unrecognized shorthand.
+ * Returns NULL for bare "P" (auto-select proxy without a number). */
+static char *
+resolve_driver_path(char *driver)
+{
+	if (!driver || !*driver)
+		return NULL;
+
+	int aera = 0;
+	char *p = driver;
+
+	if (*p == 'P') {
+		aera = 1;
+		p++;
+	}
+
+	if (*p == '\0')
+		return NULL;
+
+	char **tuner = NULL;
+	int num_devs = 0;
+
+	if (*p == 'S') {
+		if (aera) {
+			tuner = bsdev_proxy;
+			num_devs = NUM_BSDEV_PROXY;
+		} else {
+			tuner = bsdev;
+			num_devs = NUM_BSDEV;
+		}
+		p++;
+	} else if (*p == 'T') {
+		if (aera) {
+			tuner = isdb_t_dev_proxy;
+			num_devs = NUM_ISDB_T_DEV_PROXY;
+		} else {
+			tuner = isdb_t_dev;
+			num_devs = NUM_ISDB_T_DEV;
+		}
+		p++;
+	} else {
+		return driver;
+	}
+
+	if (!isdigit((int)*p))
+		return driver;
+
+	int num = 0;
+	while (isdigit((int)*p))
+		num = num * 10 + (*p++ - '0');
+
+	if (*p != '\0' || num + 1 > num_devs)
+		return driver;
+
+	return tuner[num];
+}
+
+void
+show_channels_bondriver(char *driver)
+{
+	char *driver_path = resolve_driver_path(driver);
+	if (!driver_path) {
+		fprintf(stderr, "Invalid driver: %s\n", driver);
+		return;
+	}
+
+	thread_data tdata;
+	memset(&tdata, 0, sizeof(tdata));
+	tdata.hModule = NULL;
+	tdata.dwSpace = 0;
+	tdata.table = NULL;
+	tdata.lnb = -1;
+
+	if (open_tuner(&tdata, driver_path) != 0) {
+		fprintf(stderr, "Cannot open tuner driver: %s\n", driver_path);
+		return;
+	}
+
+	fprintf(stderr, "driver = %s\n", driver_path);
+
+	IBonDriver2 *pIBon2 = tdata.pIBon2;
+
+	LPCTSTR tunerName = pIBon2->GetTunerName();
+	if (tunerName) {
+		char buf[256];
+		tchar_to_utf8(tunerName, buf, sizeof(buf));
+		fprintf(stderr, "tuner = %s\n", buf);
+	}
+
+	fprintf(stderr, "Available Channels:\n");
+
+	for (DWORD dwSpace = 0; ; dwSpace++) {
+		LPCTSTR spaceName = pIBon2->EnumTuningSpace(dwSpace);
+		if (!spaceName)
+			break;
+
+		char sbuf[256];
+		tchar_to_utf8(spaceName, sbuf, sizeof(sbuf));
+		if (sbuf[0])
+			fprintf(stderr, "Space %u (%s):\n", dwSpace, sbuf);
+		else
+			fprintf(stderr, "Space %u:\n", dwSpace);
+
+		for (DWORD dwChannel = 0; ; dwChannel++) {
+			LPCTSTR chName = pIBon2->EnumChannelName(dwSpace, dwChannel);
+			if (!chName)
+				break;
+
+			char cbuf[256];
+			tchar_to_utf8(chName, cbuf, sizeof(cbuf));
+			if (cbuf[0])
+				fprintf(stderr, "  %u: %s\n", dwChannel, cbuf);
+			else
+				fprintf(stderr, "  %u: (no name)\n", dwChannel);
+		}
+	}
+
+	close_tuner(&tdata);
+}
+
+
 int
 parse_time(const char * rectimestr, int *recsec)
 {

@@ -548,7 +548,7 @@ show_options(void)
 	fprintf(stderr, "--sid SID1,SID2,...: Specify SID number in CSV format (101,102,...)\n");
 	fprintf(stderr, "--help:              Show this help\n");
 	fprintf(stderr, "--version:           Show version\n");
-	fprintf(stderr, "--list:              Show channel list\n");
+	fprintf(stderr, "--list:              Show channel list (use --driver for BonDriver query)\n");
 }
 
 void
@@ -684,6 +684,7 @@ main(int argc, char **argv)
 	boolean fileless = FALSE;
 	boolean use_stdout = FALSE;
 	boolean use_splitter = FALSE;
+	boolean list_only = FALSE;
 	char *host_to = NULL;
 	int port_to = 1234;
 	int port_http = 12345;
@@ -745,8 +746,7 @@ main(int argc, char **argv)
 			exit(0);
 			break;
 		case 'l':
-			show_channels();
-			exit(0);
+			list_only = TRUE;
 			break;
 		/* following options require argument */
 #if 0
@@ -788,6 +788,14 @@ main(int argc, char **argv)
 			sid_list = optarg;
 			break;
 		}
+	}
+
+	if(list_only){
+		if(driver)
+			show_channels_bondriver(driver);
+		else
+			show_channels();
+		return 0;
 	}
 
 	if(use_http){	// http-server add-

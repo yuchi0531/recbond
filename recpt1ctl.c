@@ -27,9 +27,10 @@ show_options(void)
 	fprintf(stderr, "--sid SID1,SID2,...: Specify SID number in CSV format (101,102,...)\n");
     fprintf(stderr, "--extend:            Extend recording time\n");
     fprintf(stderr, "--time:              Set total recording time\n");
+    fprintf(stderr, "--driver drivername: Specify drivername to use\n");
     fprintf(stderr, "--help:              Show this help\n");
     fprintf(stderr, "--version:           Show version\n");
-    fprintf(stderr, "--list:              Show channel list\n");
+    fprintf(stderr, "--list:              Show channel list (use --driver for BonDriver query)\n");
 }
 
 int
@@ -42,7 +43,9 @@ main(int argc, char **argv)
     char *channel = NULL;
     message_buf sbuf;
     size_t buf_length;
-	char *sid_list = NULL;
+    char *sid_list = NULL;
+    char *driver = NULL;
+    boolean list_only = FALSE;
 
     int result;
     int option_index;
@@ -55,10 +58,11 @@ main(int argc, char **argv)
         { "help",      0, NULL, 'h'},
         { "version",   0, NULL, 'v'},
         { "list",      0, NULL, 'l'},
+        { "driver",    1, NULL, 'd'},
         {0, 0, NULL, 0} /* terminate */
     };
 
-    while((result = getopt_long(argc, argv, "p:c:i:e:t:hvl",
+    while((result = getopt_long(argc, argv, "p:c:i:e:t:hvld:",
                                 long_options, &option_index)) != -1) {
         switch(result) {
         case 'h':
@@ -77,8 +81,7 @@ main(int argc, char **argv)
             exit(0);
             break;
         case 'l':
-            show_channels();
-            exit(0);
+            list_only = TRUE;
             break;
         /* following options require argument */
         case 'p':
@@ -101,7 +104,19 @@ main(int argc, char **argv)
 			sid_list = optarg;
             fprintf(stderr, "Service ID = %s\n", sid_list);
 			break;
+        case 'd':
+            driver = optarg;
+            fprintf(stderr, "using driver: %s\n", driver);
+            break;
         }
+    }
+
+    if(list_only){
+        if(driver)
+            show_channels_bondriver(driver);
+        else
+            show_channels();
+        exit(0);
     }
 
     if(!key) {

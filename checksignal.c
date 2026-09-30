@@ -107,7 +107,7 @@ show_options(void)
 	fprintf(stderr, "--bell:              Notify signal quality by bell\n");
 	fprintf(stderr, "--help:              Show this help\n");
 	fprintf(stderr, "--version:           Show version\n");
-	fprintf(stderr, "--list:              Show channel list\n");
+	fprintf(stderr, "--list:              Show channel list (use --driver for BonDriver query)\n");
 }
 
 int
@@ -138,6 +138,7 @@ main(int argc, char **argv)
 	char *voltage[] = {"0V", "11V", "15V"};
 #endif
 	boolean use_bell = FALSE;
+	boolean list_only = FALSE;
 
 	while((result = getopt_long(argc, argv, "bhvln:d:",
 								long_options, &option_index)) != -1) {
@@ -161,8 +162,7 @@ main(int argc, char **argv)
 			exit(0);
 			break;
 		case 'l':
-			show_channels();
-			exit(0);
+			list_only = TRUE;
 			break;
 #if 0
 		/* following options require argument */
@@ -186,6 +186,14 @@ main(int argc, char **argv)
 			driver = optarg;
 			break;
 		}
+	}
+
+	if(list_only){
+		if(driver)
+			show_channels_bondriver(driver);
+		else
+			show_channels();
+		return 0;
 	}
 
 	if(argc - optind < 1) {
