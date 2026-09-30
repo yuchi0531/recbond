@@ -53,6 +53,23 @@ BonDriver_Proxy(クライアント)を利用する場合は、短縮指定時に
 自動選択時は、"P"を単独で指定してください。
 
 
+[チャンネル一覧表示 --list]
+BonDriverからチューニング番号とチャンネル番号を取得して一覧表示します。
+"--driver"を指定すると、指定したBonDriver(BonDriverProxyを含む)に実際に接続して
+チャンネルを列挙します。"--driver"を省略すると、ハードコードされたチャンネルリストを
+表示します。
+
+使用例:
+  recbond --list --driver PS0
+  recpt1ctl --list --driver PT0
+  checkbond --list --driver /usr/local/lib/BonDriver/BonDriver_ProxyS0.so
+
+BonDriverProxyを利用する場合は、各BonDriver_Proxy*.soの.confファイルに
+"ADDRESS=192.168.100.113"のように対象サーバのアドレスを設定してください。
+短縮指定の自動解決(PS0 -> BonDriver_ProxyS0.so)や、BonDriverが返すTCHAR(UTF-16LE)
+文字列をUTF-8に変換して表示します。
+
+
 [備考]
 ・チャンネル定義をいじらない
   「BonDriverチャンネル指定しか使わないぜ！」という場合を除き一切変更してはいけません。
